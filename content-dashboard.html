@@ -1,0 +1,760 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Content Calendar Dashboard</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@2.44.0/tabler-icons.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --red: #E24B4A;
+    --red-light: #fdf1f1;
+    --black: #111111;
+    --gray-1: #f7f7f7;
+    --gray-2: #eeeeee;
+    --gray-3: #cccccc;
+    --gray-4: #888888;
+    --gray-5: #444444;
+    --white: #ffffff;
+    --border: rgba(0,0,0,0.08);
+    --radius-sm: 6px;
+    --radius-md: 10px;
+    --radius-lg: 14px;
+    --font: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  }
+  html { font-size: 14px; }
+  body {
+    font-family: var(--font);
+    background: #f4f4f4;
+    color: var(--black);
+    min-height: 100vh;
+    line-height: 1.5;
+  }
+  a { color: inherit; text-decoration: none; }
+  button { font-family: var(--font); }
+
+  /* ─── LAYOUT ─── */
+  .page { max-width: 1200px; margin: 0 auto; padding: 28px 24px; }
+
+  /* ─── HEADER ─── */
+  .header {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 24px;
+    padding-bottom: 20px;
+    border-bottom: 2px solid var(--red);
+  }
+  .brand { display: flex; align-items: center; gap: 12px; }
+  .brand-bar { width: 4px; height: 36px; background: var(--red); border-radius: 2px; }
+  .brand-title { font-size: 20px; font-weight: 600; color: var(--black); }
+  .brand-sub { font-size: 11px; color: var(--gray-4); margin-top: 2px; }
+  .header-right { display: flex; align-items: center; gap: 10px; }
+  .ts-text { font-size: 11px; color: var(--gray-4); }
+  .btn-refresh {
+    display: flex; align-items: center; gap: 6px;
+    padding: 8px 16px;
+    background: var(--white);
+    border: 1.5px solid var(--red);
+    border-radius: var(--radius-sm);
+    color: var(--red);
+    font-size: 13px; font-weight: 500;
+    cursor: pointer;
+    transition: .15s;
+  }
+  .btn-refresh:hover { background: var(--red); color: var(--white); }
+  .btn-refresh.loading { opacity: .6; pointer-events: none; }
+
+  /* ─── API KEY BANNER ─── */
+  .api-banner {
+    background: var(--white);
+    border: 1.5px solid var(--red);
+    border-radius: var(--radius-md);
+    padding: 20px 24px;
+    margin-bottom: 24px;
+  }
+  .api-banner h3 { font-size: 15px; font-weight: 600; margin-bottom: 8px; color: var(--red); }
+  .api-banner p { font-size: 12px; color: var(--gray-4); margin-bottom: 12px; line-height: 1.6; }
+  .api-input-row { display: flex; gap: 8px; flex-wrap: wrap; }
+  .api-input-row input {
+    flex: 1; min-width: 260px;
+    padding: 8px 12px;
+    border: 1px solid var(--gray-3);
+    border-radius: var(--radius-sm);
+    font-size: 13px;
+    font-family: monospace;
+    color: var(--black);
+  }
+  .api-input-row input:focus { outline: none; border-color: var(--red); }
+  .btn-connect {
+    padding: 8px 18px;
+    background: var(--red);
+    color: var(--white);
+    border: none;
+    border-radius: var(--radius-sm);
+    font-size: 13px; font-weight: 500;
+    cursor: pointer;
+  }
+  .btn-connect:hover { background: #c93a39; }
+
+  /* ─── METRICS ─── */
+  .metrics { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 12px; margin-bottom: 20px; }
+  .mc {
+    background: var(--white);
+    border: 0.5px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 18px 20px;
+    position: relative; overflow: hidden;
+  }
+  .mc-top { width: 100%; height: 3px; position: absolute; top: 0; left: 0; right: 0; }
+  .mc-label { font-size: 10px; font-weight: 600; letter-spacing: .6px; color: var(--gray-4); margin-top: 6px; }
+  .mc-val { font-size: 32px; font-weight: 700; color: var(--black); margin: 4px 0 2px; line-height: 1; }
+  .mc-pct { font-size: 12px; font-weight: 600; }
+  .mc-bar-wrap { height: 3px; background: var(--gray-2); border-radius: 2px; margin-top: 10px; }
+  .mc-bar-fill { height: 3px; border-radius: 2px; transition: width .6s ease; }
+
+  /* ─── FILTERS ─── */
+  .filter-row {
+    background: var(--white);
+    border: 0.5px solid var(--border);
+    border-radius: var(--radius-md);
+    padding: 14px 18px;
+    margin-bottom: 20px;
+    display: flex; flex-wrap: wrap; align-items: center; gap: 10px;
+  }
+  .filter-label { font-size: 12px; font-weight: 600; color: var(--gray-4); display: flex; align-items: center; gap: 4px; }
+  .filter-row select {
+    padding: 6px 10px;
+    border: 1px solid var(--gray-3);
+    border-radius: var(--radius-sm);
+    font-size: 12px;
+    font-family: var(--font);
+    color: var(--black);
+    background: var(--white);
+    cursor: pointer;
+  }
+  .filter-row select:focus { outline: none; border-color: var(--red); }
+  .btn-clear {
+    padding: 6px 14px;
+    border: 1px solid var(--red);
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--red);
+    font-size: 12px; font-weight: 500;
+    cursor: pointer;
+  }
+  .btn-clear:hover { background: var(--red); color: var(--white); }
+  .filter-count { margin-left: auto; font-size: 12px; color: var(--gray-4); }
+
+  /* ─── CHARTS GRID ─── */
+  .charts-grid { display: grid; grid-template-columns: minmax(0,1.15fr) minmax(0,.85fr); gap: 14px; margin-bottom: 14px; }
+  .chart-card {
+    background: var(--white);
+    border: 0.5px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 18px 20px;
+  }
+  .cc-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+  .cc-title {
+    font-size: 11px; font-weight: 600; letter-spacing: .5px;
+    color: var(--gray-4);
+    display: flex; align-items: center; gap: 5px;
+  }
+  .cc-title i { color: var(--red); font-size: 15px; }
+  .cc-badge {
+    font-size: 11px; color: var(--gray-4);
+    background: var(--gray-1);
+    padding: 2px 8px;
+    border-radius: 20px;
+  }
+  .legend { display: flex; flex-wrap: wrap; gap: 6px 14px; margin-top: 12px; }
+  .legend-item { display: flex; align-items: center; gap: 5px; font-size: 11px; color: var(--gray-4); }
+  .legend-dot { width: 9px; height: 9px; border-radius: 2px; flex-shrink: 0; }
+  .legend-val { font-weight: 600; color: var(--black); }
+  .legend-pct { color: var(--gray-3); }
+
+  /* ─── TABLE ─── */
+  .table-section {
+    background: var(--white);
+    border: 0.5px solid var(--border);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    margin-bottom: 16px;
+  }
+  .table-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 16px 20px;
+    border-bottom: 1.5px solid var(--red);
+  }
+  .t-title { font-size: 11px; font-weight: 600; letter-spacing: .5px; color: var(--gray-4); display: flex; align-items: center; gap: 5px; }
+  .t-title i { color: var(--red); font-size: 15px; }
+  .t-count { font-size: 12px; font-weight: 600; color: var(--red); }
+  .table-wrap { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 12px; table-layout: fixed; }
+  col.c-img { width: 48px; }
+  col.c-name { width: 200px; }
+  col.c-status { width: 130px; }
+  col.c-plat { width: 130px; }
+  col.c-date { width: 90px; }
+  col.c-pillar { width: 160px; }
+  col.c-creator { width: 100px; }
+  thead th {
+    padding: 10px 12px;
+    text-align: left;
+    background: var(--gray-1);
+    font-size: 10px; font-weight: 600; letter-spacing: .5px;
+    color: var(--gray-4);
+    border-bottom: 0.5px solid var(--border);
+    white-space: nowrap;
+  }
+  tbody td {
+    padding: 10px 12px;
+    border-bottom: 0.5px solid var(--border);
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    vertical-align: middle;
+  }
+  tbody tr:last-child td { border-bottom: none; }
+  tbody tr:hover td { background: var(--gray-1); }
+
+  .img-thumb {
+    width: 38px; height: 38px;
+    object-fit: cover;
+    border-radius: 6px;
+    border: 0.5px solid var(--border);
+    cursor: pointer;
+    display: block;
+    transition: opacity .15s;
+  }
+  .img-thumb:hover { opacity: .85; }
+  .img-ph {
+    width: 38px; height: 38px;
+    background: var(--gray-1);
+    border-radius: 6px;
+    border: 0.5px solid var(--border);
+    display: flex; align-items: center; justify-content: center;
+    color: var(--gray-3);
+  }
+  .badge {
+    display: inline-block; padding: 3px 8px;
+    border-radius: 20px; font-size: 10px; font-weight: 600;
+    white-space: nowrap;
+  }
+  .s-idea     { background: #f1f1f1; color: #555; }
+  .s-brief    { background: #fef9e7; color: #7a5f00; }
+  .s-editing  { background: #fef3e7; color: #8b4000; }
+  .s-review   { background: #f0eeff; color: #4a3fb5; }
+  .s-ready    { background: #eafaf1; color: #1e6b3c; }
+  .s-scheduled{ background: #e8f4fd; color: #1a5276; }
+  .s-published{ background: #eafaf1; color: #155a30; }
+  .s-onhold   { background: #f8f9fa; color: #555; }
+  .s-rab      { background: #fde8ec; color: #9b1c2e; }
+  .s-truat    { background: #e0f7f3; color: #0d5246; }
+
+  .ptag {
+    display: inline-block; padding: 2px 6px;
+    border-radius: 4px; font-size: 10px; font-weight: 500;
+    margin-right: 2px; white-space: nowrap;
+  }
+  .pt-fb { background: #e7f0fd; color: #1a56c4; }
+  .pt-tt { background: #f0f0f0; color: #111; }
+  .pt-ig { background: #fce4ec; color: #ad1457; }
+  .pt-sh { background: #fff3e0; color: #bf5000; }
+
+  .content-link { font-weight: 500; color: var(--black); }
+  .content-link:hover { color: var(--red); }
+
+  /* ─── PAGER ─── */
+  .pager {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 12px 20px;
+    border-top: 0.5px solid var(--border);
+    font-size: 12px; color: var(--gray-4);
+  }
+  .pager-btns { display: flex; gap: 4px; }
+  .pb {
+    padding: 5px 11px;
+    border: 1px solid var(--gray-2);
+    border-radius: var(--radius-sm);
+    background: var(--white);
+    color: var(--black);
+    font-size: 12px;
+    cursor: pointer;
+  }
+  .pb:disabled { opacity: .4; cursor: default; }
+  .pb.act { background: var(--red); color: var(--white); border-color: var(--red); }
+  .pb:not(:disabled):not(.act):hover { border-color: var(--red); color: var(--red); }
+
+  /* ─── MODAL ─── */
+  .modal-overlay {
+    display: none;
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,.65);
+    z-index: 1000;
+    align-items: center; justify-content: center;
+  }
+  .modal-overlay.open { display: flex; }
+  .modal-box {
+    background: var(--white);
+    border-radius: var(--radius-lg);
+    padding: 22px;
+    max-width: 420px; width: 92%;
+    position: relative;
+  }
+  .modal-close {
+    position: absolute; top: 12px; right: 14px;
+    background: transparent; border: none;
+    font-size: 20px; color: var(--gray-4);
+    cursor: pointer; line-height: 1;
+  }
+  .modal-close:hover { color: var(--black); }
+  .modal-img { width: 100%; border-radius: 8px; max-height: 300px; object-fit: contain; margin-top: 4px; }
+  .modal-name { font-size: 14px; font-weight: 600; margin-top: 12px; color: var(--black); }
+  .modal-meta { font-size: 11px; color: var(--gray-4); margin-top: 5px; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+  .modal-link { margin-top: 10px; }
+  .modal-link a {
+    display: inline-flex; align-items: center; gap: 5px;
+    font-size: 12px; color: var(--red);
+    border: 1px solid var(--red);
+    padding: 5px 12px; border-radius: var(--radius-sm);
+  }
+  .modal-link a:hover { background: var(--red); color: var(--white); }
+
+  /* ─── STATES ─── */
+  .empty-row td { text-align: center; padding: 40px; color: var(--gray-4); font-size: 13px; }
+  .error-row td { text-align: center; padding: 30px; color: var(--red); font-size: 13px; }
+
+  /* ─── RESPONSIVE ─── */
+  @media (max-width: 768px) {
+    .page { padding: 16px; }
+    .metrics { grid-template-columns: repeat(2, 1fr); }
+    .charts-grid { grid-template-columns: 1fr; }
+    .header { flex-wrap: wrap; gap: 10px; }
+  }
+  @media (max-width: 480px) {
+    .metrics { grid-template-columns: 1fr 1fr; }
+    .mc-val { font-size: 24px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="page">
+
+  <!-- HEADER -->
+  <div class="header">
+    <div class="brand">
+      <div class="brand-bar"></div>
+      <div>
+        <div class="brand-title">Content Calendar</div>
+        <div class="brand-sub" id="tsBar">กรุณาใส่ API Key เพื่อเริ่มต้น</div>
+      </div>
+    </div>
+    <div class="header-right">
+      <button class="btn-refresh" id="btnRefresh" onclick="loadData()">
+        <i class="ti ti-refresh"></i> Refresh
+      </button>
+    </div>
+  </div>
+
+  <!-- API KEY SETUP -->
+  <div class="api-banner" id="apiBanner">
+    <h3><i class="ti ti-key"></i> ตั้งค่า API Key</h3>
+    <p>Dashboard นี้ดึงข้อมูลจาก Notion ผ่าน Anthropic API โดยตรง<br>
+    ใส่ Anthropic API Key ของคุณ (เริ่มต้นด้วย <code>sk-ant-</code>) เพื่อเชื่อมต่อ — Key จะเก็บเฉพาะใน browser ของคุณเท่านั้น ไม่ถูกส่งไปที่ไหน</p>
+    <div class="api-input-row">
+      <input type="password" id="apiKeyInput" placeholder="sk-ant-api03-..." autocomplete="off">
+      <button class="btn-connect" onclick="connectApi()"><i class="ti ti-plug"></i> เชื่อมต่อ</button>
+    </div>
+  </div>
+
+  <!-- METRICS -->
+  <div class="metrics" id="metrics">
+    <div class="mc"><div class="mc-top" style="background:var(--red)"></div><div class="mc-label">TOTAL CONTENT</div><div class="mc-val">—</div></div>
+    <div class="mc"><div class="mc-top" style="background:#639922"></div><div class="mc-label">PUBLISHED</div><div class="mc-val">—</div></div>
+    <div class="mc"><div class="mc-top" style="background:#378ADD"></div><div class="mc-label">IN PROGRESS</div><div class="mc-val">—</div></div>
+    <div class="mc"><div class="mc-top" style="background:#EF9F27"></div><div class="mc-label">SCHEDULED</div><div class="mc-val">—</div></div>
+  </div>
+
+  <!-- FILTERS -->
+  <div class="filter-row">
+    <span class="filter-label"><i class="ti ti-filter" style="font-size:14px"></i> กรอง</span>
+    <select id="fStatus" onchange="applyFilter()"><option value="">ทุก Status</option></select>
+    <select id="fPlatform" onchange="applyFilter()">
+      <option value="">ทุก Platform</option>
+      <option>Facebook</option><option>Tiktok</option><option>Instagram</option><option>shopee</option>
+    </select>
+    <select id="fPillar" onchange="applyFilter()"><option value="">ทุก Pillar</option></select>
+    <select id="fCreator" onchange="applyFilter()"><option value="">ทุก ผู้จัดทำ</option></select>
+    <button class="btn-clear" onclick="clearFilters()">ล้างตัวกรอง</button>
+    <span class="filter-count" id="filterCount"></span>
+  </div>
+
+  <!-- CHARTS -->
+  <div class="charts-grid">
+    <div class="chart-card">
+      <div class="cc-head">
+        <div class="cc-title"><i class="ti ti-chart-donut"></i> สถานะคอนเทนต์</div>
+        <div class="cc-badge" id="statusTotal">—</div>
+      </div>
+      <div style="position:relative;height:200px">
+        <canvas id="cStatus" role="img" aria-label="Status donut chart">Status data</canvas>
+      </div>
+      <div class="legend" id="statusLegend"></div>
+    </div>
+
+    <div class="chart-card">
+      <div class="cc-head">
+        <div class="cc-title"><i class="ti ti-device-mobile"></i> แพลตฟอร์ม</div>
+      </div>
+      <div style="position:relative;height:200px">
+        <canvas id="cPlatform" role="img" aria-label="Platform bar chart">Platform data</canvas>
+      </div>
+      <div class="legend" id="platLegend"></div>
+    </div>
+
+    <div class="chart-card">
+      <div class="cc-head">
+        <div class="cc-title"><i class="ti ti-layout-columns"></i> Content Pillar</div>
+      </div>
+      <div style="position:relative;height:210px">
+        <canvas id="cPillar" role="img" aria-label="Pillar horizontal bar">Pillar data</canvas>
+      </div>
+    </div>
+
+    <div class="chart-card">
+      <div class="cc-head">
+        <div class="cc-title"><i class="ti ti-users"></i> ผู้จัดทำ</div>
+      </div>
+      <div style="position:relative;height:210px">
+        <canvas id="cCreator" role="img" aria-label="Creator bar chart">Creator data</canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- TABLE -->
+  <div class="table-section">
+    <div class="table-header">
+      <div class="t-title"><i class="ti ti-list-details"></i> รายการทั้งหมด</div>
+      <div class="t-count" id="tCount"></div>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <colgroup>
+          <col class="c-img"><col class="c-name"><col class="c-status">
+          <col class="c-plat"><col class="c-date"><col class="c-pillar"><col class="c-creator">
+        </colgroup>
+        <thead>
+          <tr>
+            <th>รูป</th><th>ชื่อคอนเทนต์</th><th>Status</th>
+            <th>Platform</th><th>วันโพสต์</th><th>Pillar</th><th>ผู้จัดทำ</th>
+          </tr>
+        </thead>
+        <tbody id="tbody">
+          <tr class="empty-row"><td colspan="7">ใส่ API Key เพื่อโหลดข้อมูล</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="pager">
+      <span id="pagerInfo"></span>
+      <div class="pager-btns" id="pagerBtns"></div>
+    </div>
+  </div>
+
+</div><!-- /page -->
+
+<!-- MODAL -->
+<div class="modal-overlay" id="modal" onclick="if(event.target===this)closeModal()">
+  <div class="modal-box">
+    <button class="modal-close" onclick="closeModal()" aria-label="ปิด"><i class="ti ti-x"></i></button>
+    <img class="modal-img" id="mImg" src="" alt="">
+    <div class="modal-name" id="mName"></div>
+    <div class="modal-meta" id="mMeta"></div>
+    <div class="modal-link" id="mLink"></div>
+  </div>
+</div>
+
+<script>
+/* ── CONSTANTS ── */
+const DB_URL = 'collection://2158ddad-4a9d-80a3-a2e8-000bff9a7a6e';
+const NOTION_MCP = 'https://mcp.notion.com/mcp';
+const PG = 15;
+
+const SC = {
+  'Idea':'#888780','Brief':'#EF9F27','รับทราบ':'#F09595','Editing':'#D85A30',
+  'Ready for review':'#7F77DD','In review':'#D4537E','ตรวจแล้ว รอโพสต์':'#1D9E75',
+  'Scheduled':'#378ADD','Published':'#639922','On hold':'#B4B2A9'
+};
+const PC = {'Facebook':'#1877f2','Tiktok':'#222222','Instagram':'#E1306C','shopee':'#FF6900'};
+const PIL_C = ['#E24B4A','#222222','#555555','#888780','#B4B2A9','#D3D1C7','#EF9F27'];
+
+let all = [], fil = [], page = 1, ci = {}, apiKey = '';
+
+/* ── HELPERS ── */
+const pArr = s => { try { const a = JSON.parse(s); return Array.isArray(a) ? a : [s].filter(Boolean); } catch { return s ? [s] : []; } };
+const pct  = (n, t) => t ? Math.round(n / t * 100) + '%' : '0%';
+const sClass = s => {
+  const m = { 'Idea':'s-idea','Brief':'s-brief','Editing':'s-editing','Ready for review':'s-review',
+    'In review':'s-review','Published':'s-published','Scheduled':'s-scheduled','On hold':'s-onhold',
+    'รับทราบ':'s-rab','ตรวจแล้ว รอโพสต์':'s-truat' };
+  return m[s] || 's-idea';
+};
+const ptag = p => {
+  const c = { 'Facebook':'pt-fb','Tiktok':'pt-tt','Instagram':'pt-ig','shopee':'pt-sh' };
+  return `<span class="ptag ${c[p]||''}">${p}</span>`;
+};
+const dc = id => { try { ci[id] && ci[id].destroy(); delete ci[id]; } catch(e){} };
+
+/* ── API KEY ── */
+function connectApi() {
+  const k = document.getElementById('apiKeyInput').value.trim();
+  if (!k.startsWith('sk-ant-')) {
+    alert('API Key ไม่ถูกต้อง — ต้องขึ้นต้นด้วย sk-ant-');
+    return;
+  }
+  apiKey = k;
+  localStorage.setItem('anth_key', k);
+  document.getElementById('apiBanner').style.display = 'none';
+  loadData();
+}
+
+/* ── LOAD ── */
+async function loadData() {
+  if (!apiKey) {
+    apiKey = localStorage.getItem('anth_key') || '';
+    if (!apiKey) { document.getElementById('apiBanner').style.display = 'block'; return; }
+    document.getElementById('apiBanner').style.display = 'none';
+  }
+  const btn = document.getElementById('btnRefresh');
+  btn.classList.add('loading');
+  btn.innerHTML = '<i class="ti ti-loader-2"></i> กำลังโหลด...';
+  document.getElementById('tsBar').textContent = 'กำลังดึงข้อมูลจาก Notion...';
+
+  const prompt = `Use Notion MCP. Search database ${DB_URL}. Return ALL pages (up to 50) as a raw JSON array only — no markdown, no extra text.
+Each object must have exactly: id, name (Content name), status (Status), platform (Platform as JSON array string), publish_date (date:Publish date:start), pillar (Content Pillar as JSON array string), creator (ผู้จัดทำ as JSON array string), type, image_url (first image URL from page content or empty string), page_url.`;
+
+  try {
+    const r = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-api-key': apiKey, 'anthropic-version': '2023-06-01' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514', max_tokens: 4000,
+        system: 'Extract Notion data and return ONLY a valid JSON array. No markdown. No explanation.',
+        messages: [{ role: 'user', content: prompt }],
+        mcp_servers: [{ type: 'url', url: NOTION_MCP, name: 'notion' }]
+      })
+    });
+    if (!r.ok) throw new Error(`API Error ${r.status}`);
+    const d = await r.json();
+    const txt = d.content?.filter(b => b.type === 'text').map(b => b.text).join('');
+    const s = txt.indexOf('['), e = txt.lastIndexOf(']');
+    if (s < 0 || e < 0) throw new Error('ไม่พบข้อมูล JSON');
+    all = JSON.parse(txt.slice(s, e + 1));
+    if (!all.length) throw new Error('ไม่มีข้อมูล');
+    populateFilters();
+    applyFilter();
+    document.getElementById('tsBar').textContent = `อัปเดตล่าสุด ${new Date().toLocaleString('th-TH')} · ${all.length} รายการ`;
+  } catch(err) {
+    document.getElementById('tsBar').textContent = 'โหลดไม่สำเร็จ: ' + err.message;
+    document.getElementById('tbody').innerHTML = `<tr class="error-row"><td colspan="7"><i class="ti ti-alert-circle"></i> ${err.message}</td></tr>`;
+  } finally {
+    btn.classList.remove('loading');
+    btn.innerHTML = '<i class="ti ti-refresh"></i> Refresh';
+  }
+}
+
+function populateFilters() {
+  const st = [...new Set(all.map(d => d.status).filter(Boolean))];
+  document.getElementById('fStatus').innerHTML = '<option value="">ทุก Status</option>' + st.map(s => `<option>${s}</option>`).join('');
+  const pi = [...new Set(all.flatMap(d => pArr(d.pillar)))].filter(Boolean);
+  document.getElementById('fPillar').innerHTML = '<option value="">ทุก Pillar</option>' + pi.map(p => `<option>${p}</option>`).join('');
+  const cr = [...new Set(all.flatMap(d => pArr(d.creator)))].filter(Boolean);
+  document.getElementById('fCreator').innerHTML = '<option value="">ทุก ผู้จัดทำ</option>' + cr.map(c => `<option>${c}</option>`).join('');
+}
+
+function applyFilter() {
+  const st = document.getElementById('fStatus')?.value || '';
+  const pl = document.getElementById('fPlatform')?.value || '';
+  const pi = document.getElementById('fPillar')?.value || '';
+  const cr = document.getElementById('fCreator')?.value || '';
+  fil = all.filter(d => {
+    if (st && d.status !== st) return false;
+    if (pl && !pArr(d.platform).includes(pl)) return false;
+    if (pi && !pArr(d.pillar).includes(pi)) return false;
+    if (cr && !pArr(d.creator).includes(cr)) return false;
+    return true;
+  });
+  page = 1;
+  const active = [st,pl,pi,cr].filter(Boolean).length;
+  document.getElementById('filterCount').textContent = active ? `กรองแล้ว: ${fil.length} จาก ${all.length}` : '';
+  renderMetrics();
+  renderCharts();
+  renderTable();
+}
+
+function clearFilters() {
+  ['fStatus','fPlatform','fPillar','fCreator'].forEach(id => { const el = document.getElementById(id); if(el) el.value = ''; });
+  applyFilter();
+}
+
+/* ── METRICS ── */
+function renderMetrics() {
+  const total = fil.length;
+  const pub  = fil.filter(d => d.status === 'Published').length;
+  const inp  = fil.filter(d => ['Brief','Editing','Ready for review','In review','รับทราบ'].includes(d.status)).length;
+  const sch  = fil.filter(d => ['Scheduled','ตรวจแล้ว รอโพสต์'].includes(d.status)).length;
+  const items = [
+    { label:'TOTAL CONTENT', val:total, pct:'',           color:'#E24B4A', fill:100 },
+    { label:'PUBLISHED',     val:pub,   pct:pct(pub,total), color:'#639922', fill:Math.round(pub/Math.max(total,1)*100) },
+    { label:'IN PROGRESS',   val:inp,   pct:pct(inp,total), color:'#378ADD', fill:Math.round(inp/Math.max(total,1)*100) },
+    { label:'SCHEDULED',     val:sch,   pct:pct(sch,total), color:'#EF9F27', fill:Math.round(sch/Math.max(total,1)*100) },
+  ];
+  document.getElementById('metrics').innerHTML = items.map(m => `
+    <div class="mc">
+      <div class="mc-top" style="background:${m.color}"></div>
+      <div class="mc-label">${m.label}</div>
+      <div class="mc-val">${m.val}</div>
+      ${m.pct ? `<div class="mc-pct" style="color:${m.color}">${m.pct}</div>` : ''}
+      <div class="mc-bar-wrap"><div class="mc-bar-fill" style="width:${m.fill}%;background:${m.color}"></div></div>
+    </div>`).join('');
+}
+
+/* ── CHARTS ── */
+function renderCharts() {
+  const tC = '#888888', grid = 'rgba(0,0,0,0.05)';
+
+  /* Status donut */
+  const sCt = {};
+  fil.forEach(d => { if(d.status) sCt[d.status] = (sCt[d.status]||0) + 1; });
+  const sK = Object.keys(sCt).sort((a,b) => sCt[b]-sCt[a]);
+  const sTotal = sK.reduce((s,k) => s+sCt[k], 0);
+  dc('cStatus');
+  ci['cStatus'] = new Chart(document.getElementById('cStatus'), {
+    type: 'doughnut',
+    data: { labels: sK, datasets: [{ data: sK.map(k => sCt[k]), backgroundColor: sK.map(k => SC[k]||'#ccc'), borderWidth: 2, borderColor: '#fff', hoverBorderWidth: 3 }] },
+    options: { responsive:true, maintainAspectRatio:false, cutout:'62%',
+      plugins: { legend:{display:false}, tooltip:{callbacks:{label:ctx => `${ctx.label}: ${ctx.raw} (${Math.round(ctx.raw/sTotal*100)}%)`}} } }
+  });
+  document.getElementById('statusTotal').textContent = `${sTotal} รายการ`;
+  document.getElementById('statusLegend').innerHTML = sK.map(k => `
+    <span class="legend-item">
+      <span class="legend-dot" style="background:${SC[k]||'#ccc'}"></span>
+      ${k} <span class="legend-val">${sCt[k]}</span>
+      <span class="legend-pct">(${Math.round(sCt[k]/sTotal*100)}%)</span>
+    </span>`).join('');
+
+  /* Platform bar */
+  const pCt = {};
+  fil.forEach(d => pArr(d.platform).forEach(p => { pCt[p] = (pCt[p]||0)+1; }));
+  const pK = Object.keys(pCt).sort((a,b) => pCt[b]-pCt[a]);
+  const pTotal = pK.reduce((s,k) => s+pCt[k], 0);
+  dc('cPlatform');
+  ci['cPlatform'] = new Chart(document.getElementById('cPlatform'), {
+    type: 'bar',
+    data: { labels: pK, datasets: [{ data: pK.map(k => pCt[k]), backgroundColor: pK.map(k => PC[k]||'#E24B4A'), borderRadius:5, borderSkipped:false }] },
+    options: { responsive:true, maintainAspectRatio:false,
+      plugins: { legend:{display:false}, tooltip:{callbacks:{label:ctx => `${ctx.raw} โพสต์ (${Math.round(ctx.raw/pTotal*100)}%)`}} },
+      scales: { x:{grid:{display:false},ticks:{color:tC,font:{size:11}}}, y:{grid:{color:grid},ticks:{color:tC,font:{size:10},stepSize:1},border:{display:false}} } }
+  });
+  document.getElementById('platLegend').innerHTML = pK.map(k => `
+    <span class="legend-item">
+      <span class="legend-dot" style="background:${PC[k]||'#E24B4A'}"></span>
+      ${k} <span class="legend-val">${pCt[k]}</span>
+      <span class="legend-pct">(${Math.round(pCt[k]/Math.max(pTotal,1)*100)}%)</span>
+    </span>`).join('');
+
+  /* Pillar horizontal bar */
+  const piCt = {};
+  fil.forEach(d => pArr(d.pillar).forEach(p => { piCt[p] = (piCt[p]||0)+1; }));
+  const piK = Object.keys(piCt).sort((a,b) => piCt[b]-piCt[a]);
+  const piTotal = piK.reduce((s,k) => s+piCt[k], 0);
+  dc('cPillar');
+  ci['cPillar'] = new Chart(document.getElementById('cPillar'), {
+    type: 'bar',
+    data: { labels: piK, datasets: [{ data: piK.map(k => piCt[k]), backgroundColor: piK.map((_,i) => PIL_C[i%PIL_C.length]), borderRadius:4, borderSkipped:false }] },
+    options: { indexAxis:'y', responsive:true, maintainAspectRatio:false,
+      plugins: { legend:{display:false}, tooltip:{callbacks:{label:ctx => `${ctx.raw} (${Math.round(ctx.raw/piTotal*100)}%)`}} },
+      scales: { x:{grid:{color:grid},ticks:{color:tC,font:{size:10},stepSize:1},border:{display:false}}, y:{grid:{display:false},ticks:{color:tC,font:{size:11},crossAlign:'far'}} } }
+  });
+
+  /* Creator bar */
+  const crCt = {};
+  fil.forEach(d => pArr(d.creator).forEach(c => { crCt[c] = (crCt[c]||0)+1; }));
+  const crK = Object.keys(crCt).sort((a,b) => crCt[b]-crCt[a]);
+  const crTotal = crK.reduce((s,k) => s+crCt[k], 0);
+  dc('cCreator');
+  ci['cCreator'] = new Chart(document.getElementById('cCreator'), {
+    type: 'bar',
+    data: { labels: crK, datasets: [{ data: crK.map(k => crCt[k]), backgroundColor: '#E24B4A', borderRadius:4, borderSkipped:false }] },
+    options: { responsive:true, maintainAspectRatio:false,
+      plugins: { legend:{display:false}, tooltip:{callbacks:{label:ctx => `${ctx.raw} ชิ้น (${Math.round(ctx.raw/crTotal*100)}%)`}} },
+      scales: { x:{grid:{display:false},ticks:{color:tC,font:{size:11}}}, y:{grid:{color:grid},ticks:{color:tC,font:{size:10},stepSize:1},border:{display:false}} } }
+  });
+}
+
+/* ── TABLE ── */
+function renderTable() {
+  const start = (page-1)*PG;
+  const slice = fil.slice(start, start+PG);
+  document.getElementById('tCount').textContent = `${fil.length} รายการ`;
+  document.getElementById('tbody').innerHTML = slice.length === 0
+    ? '<tr class="empty-row"><td colspan="7">ไม่พบข้อมูล</td></tr>'
+    : slice.map(d => {
+        const plats   = pArr(d.platform).map(ptag).join('');
+        const pillars = pArr(d.pillar).map(p => `<span class="badge" style="background:#f1f1f1;color:#444;margin-right:2px">${p}</span>`).join('');
+        const creators = pArr(d.creator).join(', ');
+        const safe_url  = (d.image_url||'').replace(/'/g,"\\'");
+        const safe_name = (d.name||'').replace(/'/g,"\\'");
+        const safe_st   = (d.status||'').replace(/'/g,"\\'");
+        const safe_pg   = (d.page_url||'').replace(/'/g,"\\'");
+        const imgCell = d.image_url
+          ? `<img class="img-thumb" src="${d.image_url}" alt="thumb" onclick="showModal('${safe_url}','${safe_name}','${safe_st}','${safe_pg}')">`
+          : `<div class="img-ph"><i class="ti ti-photo" style="font-size:14px"></i></div>`;
+        return `<tr>
+          <td>${imgCell}</td>
+          <td><a class="content-link" href="${d.page_url||'#'}" target="_blank">${d.name||'—'}</a></td>
+          <td><span class="badge ${sClass(d.status)}">${d.status||'—'}</span></td>
+          <td>${plats||'—'}</td>
+          <td style="color:#888;font-size:11px">${d.publish_date||'—'}</td>
+          <td>${pillars||'—'}</td>
+          <td style="color:#888;font-size:11px">${creators||'—'}</td>
+        </tr>`;
+      }).join('');
+  renderPager();
+}
+
+function renderPager() {
+  const total = Math.ceil(fil.length/PG);
+  const start = (page-1)*PG+1, end = Math.min(page*PG, fil.length);
+  document.getElementById('pagerInfo').textContent = fil.length ? `แสดง ${start}–${end} จาก ${fil.length}` : '';
+  const btns = document.getElementById('pagerBtns');
+  if (total <= 1) { btns.innerHTML = ''; return; }
+  let h = `<button class="pb" onclick="goPage(${page-1})" ${page===1?'disabled':''}>‹</button>`;
+  for (let i = 1; i <= total; i++) {
+    if (i===1||i===total||Math.abs(i-page)<=1) h += `<button class="pb ${i===page?'act':''}" onclick="goPage(${i})">${i}</button>`;
+    else if (Math.abs(i-page)===2) h += '<span style="padding:0 3px;color:#ccc">…</span>';
+  }
+  h += `<button class="pb" onclick="goPage(${page+1})" ${page===total?'disabled':''}>›</button>`;
+  btns.innerHTML = h;
+}
+function goPage(p) { const t = Math.ceil(fil.length/PG); if(p<1||p>t) return; page=p; renderTable(); }
+
+/* ── MODAL ── */
+function showModal(url, name, status, pageUrl) {
+  document.getElementById('mImg').src = url;
+  document.getElementById('mName').textContent = name;
+  document.getElementById('mMeta').innerHTML = `<span class="badge ${sClass(status)}">${status}</span>`;
+  document.getElementById('mLink').innerHTML = pageUrl
+    ? `<a href="${pageUrl}" target="_blank"><i class="ti ti-external-link" style="font-size:13px"></i> ดูใน Notion</a>` : '';
+  document.getElementById('modal').classList.add('open');
+}
+function closeModal() { document.getElementById('modal').classList.remove('open'); }
+document.addEventListener('keydown', e => { if(e.key==='Escape') closeModal(); });
+
+/* ── INIT ── */
+window.addEventListener('DOMContentLoaded', () => {
+  const saved = localStorage.getItem('anth_key');
+  if (saved) { apiKey = saved; document.getElementById('apiBanner').style.display='none'; loadData(); }
+});
+</script>
+</body>
+</html>
