@@ -1,6 +1,6 @@
 exports.handler = async (event) => {
   const NOTION_TOKEN = process.env.NOTION_TOKEN;
-  const DB_ID = '2158ddad4a9d80c0bca8c8a0198ab53d';
+  const DB_ID = '2158ddad4a9d80a3a2e8000bff9a7a6e';
 
   const headers = {
     'Access-Control-Allow-Origin': '*',
@@ -31,7 +31,7 @@ exports.handler = async (event) => {
         method: 'POST',
         headers: {
           'Authorization': 'Bearer ' + NOTION_TOKEN,
-          'Notion-Version': '2022-06-28',
+          'Notion-Version': '2025-09-03',
           'Content-Type': 'application/json',
         },
         body: JSON.stringify(bodyObj),
