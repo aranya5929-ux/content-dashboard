@@ -25,9 +25,7 @@ exports.handler = async (event) => {
       const bodyObj = { page_size: 100 };
       if (startCursor) bodyObj.start_cursor = startCursor;
 
-      const url = 'https://api.notion.com/v1/databases/' + DB_ID + '/query';
-
-      const res = await fetch(url, {
+      const res = await fetch('https://api.notion.com/v1/databases/' + DB_ID + '/query', {
         method: 'POST',
         headers: {
           'Authorization': 'Bearer ' + NOTION_TOKEN,
@@ -40,14 +38,14 @@ exports.handler = async (event) => {
       const text = await res.text();
 
       if (!res.ok) {
-        return { statusCode: res.status, headers, body: JSON.stringify({ error: text, url: url }) };
+        return { statusCode: res.status, headers, body: JSON.stringify({ error: text }) };
       }
 
       const data = JSON.parse(text);
 
       const mapped = data.results.map((page) => {
         const props = page.properties || {};
-        const getText  = (p) => p?.title?.[0]?.plain_text || p?.rich_text?.[0]?.plain_text || '';
+        const getText   = (p) => p?.title?.[0]?.plain_text || p?.rich_text?.[0]?.plain_text || '';
         const getSelect = (p) => p?.select?.name || p?.status?.name || '';
         const getMulti  = (p) => (p?.multi_select || []).map(o => o.name);
         const getDate   = (p) => p?.date?.start || '';
@@ -65,7 +63,7 @@ exports.handler = async (event) => {
           type: getSelect(props['type']),
           category: getMulti(props['Category']),
           media_type: getSelect(props['Image/VDO']),
-          image_url: '',
+          image_url: page.cover?.file?.url || page.cover?.external?.url || '',
         };
       });
 
@@ -83,7 +81,7 @@ exports.handler = async (event) => {
     return {
       statusCode: 500,
       headers,
-      body: JSON.stringify({ error: err.message, stack: err.stack }),
+      body: JSON.stringify({ error: err.message }),
     };
   }
 };
