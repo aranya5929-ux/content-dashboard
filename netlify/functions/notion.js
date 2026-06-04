@@ -1,6 +1,6 @@
 exports.handler = async (event) => {
   const NOTION_TOKEN = process.env.NOTION_TOKEN;
-  const DB_ID = '2158ddad4a9d80c0bca8c8a0198ab53d';
+  const DB_ID = '2158ddad4a9d80a3a2e8000bff9a7a6e';
 
   const headers = {
     'Access-Control-Allow-Origin': '*',
@@ -28,7 +28,7 @@ exports.handler = async (event) => {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${NOTION_TOKEN}`,
-          'Notion-Version': '2022-06-28',
+          'Notion-Version': '2025-09-03',
           'Content-Type': 'application/json',
         },
         body: JSON.stringify(body),
@@ -44,7 +44,7 @@ exports.handler = async (event) => {
       const mapped = await Promise.all(data.results.map(async (page) => {
         const props = page.properties;
 
-        const getText  = (p) => p?.title?.[0]?.plain_text || p?.rich_text?.[0]?.plain_text || '';
+        const getText   = (p) => p?.title?.[0]?.plain_text || p?.rich_text?.[0]?.plain_text || '';
         const getSelect = (p) => p?.select?.name || p?.status?.name || '';
         const getMulti  = (p) => (p?.multi_select || []).map(o => o.name);
         const getDate   = (p) => p?.date?.start || '';
@@ -56,7 +56,7 @@ exports.handler = async (event) => {
           const blockRes = await fetch(`https://api.notion.com/v1/blocks/${page.id}/children?page_size=20`, {
             headers: {
               'Authorization': `Bearer ${NOTION_TOKEN}`,
-              'Notion-Version': '2022-06-28',
+              'Notion-Version': '2025-09-03',
             },
           });
           if (blockRes.ok) {
@@ -68,13 +68,13 @@ exports.handler = async (event) => {
               }
               if (block.type === 'column_list') {
                 const colRes = await fetch(`https://api.notion.com/v1/blocks/${block.id}/children`, {
-                  headers: { 'Authorization': `Bearer ${NOTION_TOKEN}`, 'Notion-Version': '2022-06-28' },
+                  headers: { 'Authorization': `Bearer ${NOTION_TOKEN}`, 'Notion-Version': '2025-09-03' },
                 });
                 if (colRes.ok) {
                   const colData = await colRes.json();
                   for (const col of colData.results) {
                     const colBlockRes = await fetch(`https://api.notion.com/v1/blocks/${col.id}/children`, {
-                      headers: { 'Authorization': `Bearer ${NOTION_TOKEN}`, 'Notion-Version': '2022-06-28' },
+                      headers: { 'Authorization': `Bearer ${NOTION_TOKEN}`, 'Notion-Version': '2025-09-03' },
                     });
                     if (colBlockRes.ok) {
                       const colBlocks = await colBlockRes.json();
